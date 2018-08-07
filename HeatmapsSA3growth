@@ -5,8 +5,9 @@
 #4. Heat maps of % workers who drive to work by workplace SA2 and income bracket
 #5. Heat maps of city density
 
-user <- "dhourani" #choose from hbatrouney or dhourani
-save <- "no" #choose from save "yes" or "no" - only pick yes if you want to save dandelions
+################ I will be editing this file and adapting the code of Heatmap 5: city density, to instead show city growth ################
+user <- "jamesha" #choose from hbatrouney or dhourani or jamesha
+save <- "yes" #choose from save "yes" or "no" - only pick yes if you want to save dandelions
 
 library(data.table)
 library(grattanCharts)
@@ -555,10 +556,14 @@ if (save == "yes"){
 #Heat maps of city density
 #############################################################################################################################################
 #Read in workplace data
+## first things first, I'm going to need to change the basefile to give me SA3s not DZNs.
+
 if (user == "dhourani"){
 workplaceDataDZN_with_corro <- fread("C:/Users/dhourani/Documents/Spatial structure of cities/Basefile/workplaceDataDZNwithCorrespondences.csv")
 } else if (user == "hbatrouney") {
 workplaceDataDZN_with_corro <-  fread("C:/Users/hbatrouney/Documents/Spatial structure of cities/Basefile/workplaceDataDZNwithCorrespondences.csv")
+} else if (user == "jamesha"){
+workplaceDataDZN_with_corro <-  fread("C:/Users/jamesha/Documents/Spatial structure of cities/Basefile/workplaceDataDZNwithCorrespondences.csv")
 }
 
 densityShapefile <- DZN_2016
