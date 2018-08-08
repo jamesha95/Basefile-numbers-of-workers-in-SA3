@@ -79,7 +79,7 @@ BuildWorkplaceDataset <- function(city) {
   
   #Rename shapefile variables
 
-setnames(workShapefile@data, old = "SA3_NAME16", new = "work_asgs")
+setnames(workShapefile@data, old = c("SA3_NAME16", "AREASQKM16"), new = c("work_asgs","area"))
 
   
  
@@ -99,7 +99,7 @@ setnames(workShapefile@data, old = "SA3_NAME16", new = "work_asgs")
   basefile <-
     WorkData[workShapefile@data, on = "SA3==work_asgs", nomatch=0L] %>%
     setnames(c("CentroidLon","CentroidLat"), c("dest_lon", "dest_lat")) %>% 
-    .[, .SD, .SDcols = c(grep("lat|lon|SA3|work|2011|2016|Growth", names(.), value = TRUE))] 
+    .[, .SD, .SDcols = c(grep("lat|lon|SA3|work|area|2011|2016|Growth", names(.), value = TRUE))] 
  
   
   #Adding a city variable (this is relevant because at the end we row_bind the data from each city)
@@ -119,15 +119,6 @@ workplaceData <- dplyr::bind_rows(workplaceDataMelbourne , workplaceDataSydney, 
 
 #Save basefile
 if (save == "yes"){
-  if (include_correspondence == "yes"){
-    if (user == "dhourani"){
-      fwrite(workplaceData , paste0("C:/Users/dhourani/Documents/Spatial structure of cities/Basefile/workplaceData",work.asgs,"withCorrespondences.csv"))
-    } else if (user == "hbatrouney"){
-      fwrite(workplaceData , paste0("C:/Users/hbatrouney/Documents/Spatial structure of cities/Basefile/workplaceData",work.asgs,"withCorrespondences.csv"))  
-    } else if (user == "jamesha"){
-      fwrite(workplaceData , paste0("/Users/jamesha/Documents/Spatial structure of cities/Basefile/workplaceData",work.asgs,"withCorrespondences.csv"))
-    }
-  } else if (include_correspondence == "no"){
     if (user == "dhourani"){
       fwrite(workplaceData , paste0("C:/Users/dhourani/Documents/Spatial structure of cities/Basefile/workplaceData",work.asgs,".csv"))
     } else if (user == "hbatrouney"){
@@ -135,7 +126,6 @@ if (save == "yes"){
     } else if (user == "jamesha"){
       fwrite(workplaceData , paste0("/Users/jamesha/Documents/Spatial structure of cities/Basefile/workplaceData",work.asgs,".csv"))
     }
-  }
 }
 
 

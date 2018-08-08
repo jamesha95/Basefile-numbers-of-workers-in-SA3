@@ -563,40 +563,42 @@ workplaceDataSA3 <- fread("C:/Users/dhourani/Documents/Spatial structure of citi
 } else if (user == "jamesha"){
   workplaceDataSA3 <- fread("/Users/jamesha/Documents/Spatial structure of cities/Basefile/workplaceDataSA3.csv")}
 
-# growthShapefile <- SA3_2016
-# SA3_temp <- SA3_2016@data %>% as.data.table
-# growthShapefile@data <- SA3_temp[ , SA3_CODE16 := SA3_CODE16 %>% as.character()]
+ growthShapefile <- SA3_2016
+ SA3_temp <- SA3_2016@data %>% as.data.table
+ growthShapefile@data <- SA3_temp[ , SA3_NAME16 := SA3_NAME16 %>% as.character()]
 
 threshold <- 1000
 
 growth <- workplaceDataSA3[`2016workers`>threshold]
-
+growth <- growth[,GrowthRate:=GrowthRate*100]
 growth <- growth[ , SA3 := SA3 %>% as.character()]
 
-# growthShapefile@data <- growth[growthShapefile@data , on = "SA3==SA3_CODE16"]
+growthShapefile@data <- growth[growthShapefile@data , on = "SA3==SA3_NAME16"]
 
 perc_cat_growth <- function(x, lower , upper, by, sep , above.char) {
-  labs <- c(paste(paste(seq(lower, upper - by, by = by),"%"),
+  labs <- c(
+            paste(paste(seq(lower, upper - by, by = by),"%"),
                   paste(seq(lower + by, upper, by = by),"%"),
                   sep = sep),
             paste(upper,"%", above.char, sep = ""))
   breaks <- c(seq(lower, upper, by = by), Inf)
-# growthShapefile$GrowthRate <- cut(x, breaks = breaks,
-  growth$GrowthRate <- cut(x,breaks = breaks,
+ growthShapefile$GrowthRate <- cut(x, breaks = breaks,
+  #growth$GrowthRate <- cut(x,breaks = breaks,
                                               right = FALSE, labels = labs)
-  assign("growth" , growth, envir = globalenv())
+  assign("growthShapefile" , growthShapefile, envir = globalenv())
   assign("breaks" , breaks, envir = globalenv())
 }
 
-perc_cat_growth(growth$GrowthRate , lower = 50 , upper = 200 , by = 25 , sep = "-", above.char = "+")
+perc_cat_growth(growthShapefile$GrowthRate , lower = -2.5 , upper = 10 , by = 2.5 , sep = "-", above.char = "+")
 
-growth <- growth[growth$"city" == "Sydney", ] 
-#growth <- growth[!is.na(densityShapefile$"density.2016"), ] 
+growthShapefile <- growthShapefile[!is.na(growthShapefile$"GrowthRate"), ]
+growthShapefile <- growthShapefile[growthShapefile$"city" == "Sydney", ] 
 
-growthSydney <- tm_shape(growth) +
+
+growthSydney <- tm_shape(growthShapefile) +
   tm_fill ("GrowthRate", 
            title= "" , 
-           palette = gpal(7, reverse = TRUE), 
+           palette = gpal(6, reverse = TRUE), 
            title.text.size=2, 
            colorNA = "white" ,
            breaks = breaks ) +
@@ -640,31 +642,134 @@ if (save == "yes"){
   } else if (user == "hbatrouney"){
     save_tmap(growthSydney, "C:/Users/hbatrouney/Dropbox/Transport Program/Project - Spatial structure of cities/Spatial structure/Output/HeatMaps/growthSydney.png")
   } else if (user == "jamesha"){
-    save_tmap(growthSydney, "C:/Users/jamesha/Dropbox/Transport Program/Project - Spatial structure of cities/Spatial structure/Output/HeatMaps/growthSydney.png")  
+    save_tmap(growthSydney, "/Users/jamesha/Dropbox (Grattan Institute)/Transport Program/Project - Spatial structure of cities/Spatial structure/Output/HeatMaps/growthSydneytest1.png")  
   }
 }
+# 
+# 
+# densityShapefileCBD <- densityShapefile[densityShapefile$"SA3_NAME16" == "Sydney Inner City"  ,] 
+# 
+# densitySydneyCBD <- tm_shape(densityShapefileCBD) +
+#   tm_fill ("perc_density_change", 
+#            title= "" , 
+#            palette = gpal(7, reverse = TRUE), 
+#            title.text.size=2, 
+#            colorNA = "white" ,
+#            breaks = breaks ,
+#            showNA =FALSE) +
+#   tm_borders("grey80") +
+#   tm_view (alpha = 0.7, 
+#            basemaps.alpha = 2, 
+#            basemaps = "Stamen.TonerLite") +
+#   tm_layout(legend.show = FALSE)
+# 
+# if (save == "yes"){
+#   if (user == "dhourani"){
+#     save_tmap(densitySydneyCBD, "C:/Users/dhourani/Dropbox (Grattan Institute)/Transport Program/Project - Spatial structure of cities/Spatial structure/Output/HeatMaps/densitySydneyCBD.png")
+#   } else if (user == "hbatrouney"){
+#     save_tmap(densitySydneyCBD, "C:/Users/hbatrouney/Dropbox/Transport Program/Project - Spatial structure of cities/Spatial structure/Output/HeatMaps/densitySydneyCBD.png")
+#   }
+# }
 
 
-densityShapefileCBD <- densityShapefile[densityShapefile$"SA3_NAME16" == "Sydney Inner City"  ,] 
+#############################################################################################################################################
+#5b. Heat maps of city growth relative to city average
+#############################################################################################################################################
+#Read in workplace data
+if (user == "dhourani"){
+  workplaceDataSA3 <- fread("C:/Users/dhourani/Documents/Spatial structure of cities/Basefile/workplaceDataSA3.csv")
+} else if (user == "hbatrouney") {
+  workplaceDataSA3 <-  fread("C:/Users/hbatrouney/Documents/Spatial structure of cities/Basefile/workplaceDataSA3.csv")
+} else if (user == "jamesha"){
+  workplaceDataSA3 <- fread("/Users/jamesha/Documents/Spatial structure of cities/Basefile/workplaceDataSA3.csv")}
 
-densitySydneyCBD <- tm_shape(densityShapefileCBD) +
-  tm_fill ("perc_density_change", 
+#This function spits out a heat map where SA3s are shaded depending on whether they're growing faster or slower than the city average
+growthmap <- function(averagegrowth, city){
+
+  #this code is needed to make a shape file
+growthShapefile <- SA3_2016
+SA3_temp <- SA3_2016@data %>% as.data.table
+growthShapefile@data <- SA3_temp[ , SA3_NAME16 := SA3_NAME16 %>% as.character()]
+
+ #this is to get rid of the outlier "Blue Mountains South", which has a 25% growth rate bc population went from 5 people to 16 people.
+threshold <- 1000
+
+growth <- workplaceDataSA3[`2016workers`>threshold]
+growth <- growth[,GrowthRate:=GrowthRate*100]
+growth <- growth[ , SA3 := SA3 %>% as.character()]
+
+
+
+growthShapefile@data <- growth[growthShapefile@data , on = "SA3==SA3_NAME16"]
+
+#This code could do with a closer inspection - it's just borrowed from Diana's.
+perc_cat_growth <- function(x, lower , upper, by, sep , below.char, above.char) {
+  labs <- c("Below average", "About average", "Above average")
+  breaks <- c(-Inf,seq(lower, upper, by = by), Inf)
+  growthShapefile$GrowthRate <- cut(x, breaks = breaks, right = FALSE, labels = labs)
+  assign("growthShapefile" , growthShapefile, envir = globalenv())
+  assign("breaks" , breaks, envir = globalenv())
+}
+
+#Here we can specify how close to the city average is "close", e.g. +/- 0.2 percentage points.
+perc_cat_growth(growthShapefile$GrowthRate , lower = averagegrowth - 0.2 , upper = averagegrowth + 0.2 , by = 0.4 , sep = "-", below.char = "-", above.char = "+")
+
+growthShapefile <- growthShapefile[!is.na(growthShapefile$"GrowthRate"), ]
+growthShapefile <- growthShapefile[growthShapefile$"city" == city, ] 
+
+
+growthcity <- tm_shape(growthShapefile) +
+  tm_fill ("GrowthRate", 
            title= "" , 
-           palette = gpal(7, reverse = TRUE), 
+           #palette = gpal(6, reverse = TRUE), 
+           palette = c("#FFC35A","#F68B33","#D4582A"),
            title.text.size=2, 
            colorNA = "white" ,
-           breaks = breaks ,
-           showNA =FALSE) +
-  tm_borders("grey80") +
+           breaks = breaks ) +
+  tm_borders("grey20") +
   tm_view (alpha = 0.7, 
            basemaps.alpha = 2, 
            basemaps = "Stamen.TonerLite") +
-  tm_layout(legend.show = FALSE)
+  tm_layout(legend.position = c("left","top"),
+            legend.text.size = 0.6 ,
+            legend.width = 1)
+  #tm_scale_bar(position=c("right", "bottom"), 
+               #color.dark = "#D4582A", 
+               #color.light = "#FFE07F") 
+
+assign(paste0("growth",city) , growthcity , envir = globalenv())
+}
+
+#These average growth rates come from "Jobs Growth by SA2 and SA3.xlsx" in the dropbox 
+growthmap(2.19, "Sydney")
+growthmap(2.16, "Melbourne")
+growthmap(1.16, "Brisbane")
 
 if (save == "yes"){
   if (user == "dhourani"){
-    save_tmap(densitySydneyCBD, "C:/Users/dhourani/Dropbox (Grattan Institute)/Transport Program/Project - Spatial structure of cities/Spatial structure/Output/HeatMaps/densitySydneyCBD.png")
+    save_tmap(growthSydney, "C:/Users/dhourani/Dropbox (Grattan Institute)/Transport Program/Project - Spatial structure of cities/Spatial structure/Output/HeatMaps/growthSydney.png")
   } else if (user == "hbatrouney"){
-    save_tmap(densitySydneyCBD, "C:/Users/hbatrouney/Dropbox/Transport Program/Project - Spatial structure of cities/Spatial structure/Output/HeatMaps/densitySydneyCBD.png")
+    save_tmap(growthSydney, "C:/Users/hbatrouney/Dropbox/Transport Program/Project - Spatial structure of cities/Spatial structure/Output/HeatMaps/growthSydney.png")
+  } else if (user == "jamesha"){
+    save_tmap(growthSydney, "/Users/jamesha/Dropbox (Grattan Institute)/Transport Program/Project - Spatial structure of cities/Spatial structure/Output/HeatMaps/growthSydneytest2.png")  
+  }
+}
+
+if (save == "yes"){
+  if (user == "dhourani"){
+    save_tmap(growthMelbourne, "C:/Users/dhourani/Dropbox (Grattan Institute)/Transport Program/Project - Spatial structure of cities/Spatial structure/Output/HeatMaps/growthMelbourne.png")
+  } else if (user == "hbatrouney"){
+    save_tmap(growthMelbourne, "C:/Users/hbatrouney/Dropbox/Transport Program/Project - Spatial structure of cities/Spatial structure/Output/HeatMaps/growthMelbourne.png")
+  } else if (user == "jamesha"){
+    save_tmap(growthMelbourne, "/Users/jamesha/Dropbox (Grattan Institute)/Transport Program/Project - Spatial structure of cities/Spatial structure/Output/HeatMaps/growthMelbournetest2.png")  
+  }
+}
+if (save == "yes"){
+  if (user == "dhourani"){
+    save_tmap(growthBrisbane, "C:/Users/dhourani/Dropbox (Grattan Institute)/Transport Program/Project - Spatial structure of cities/Spatial structure/Output/HeatMaps/growthBrisbane.png")
+  } else if (user == "hbatrouney"){
+    save_tmap(growthBrisbane, "C:/Users/hbatrouney/Dropbox/Transport Program/Project - Spatial structure of cities/Spatial structure/Output/HeatMaps/growthBrisbane.png")
+  } else if (user == "jamesha"){
+    save_tmap(growthBrisbane, "/Users/jamesha/Dropbox (Grattan Institute)/Transport Program/Project - Spatial structure of cities/Spatial structure/Output/HeatMaps/growthBrisbanetest2.png")  
   }
 }
