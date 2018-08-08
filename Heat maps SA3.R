@@ -98,7 +98,7 @@ library(magrittr)
 # 
 # if (save == "yes"){
 #   if (user == "dhourani"){
-#   save_tmap(cityWorkersHeatMapGreaterSydney, "C:/Users/dhourani/Dropbox (Grattan Institute)/Transport Program/Project - Spatial structure of cities/Spatial structure/Output/HeatMaps/SydneyHeatMapCBDworkersAllSydney.png")
+#   save_tmap(cityWorkersHeatMapGreaterSydney, "C:/Users/dhourani/Dropbox (Grattan Institute)/Transport Program/Project - Spatial structure of cities/Spatial structure/Output/HeatMaps/SydneyHeatMapCBDworkersAllSydneytest3.png")
 #   save_tmap(cityWorkersHeatMapCoreSydney, "C:/Users/dhourani/Dropbox (Grattan Institute)/Transport Program/Project - Spatial structure of cities/Spatial structure/Output/HeatMaps/SydneyHeatMapCBDworkersCoreSydney.png")
 #   } else if (user == "hbatrouney"){
 #   save_tmap(cityWorkersHeatMapGreaterSydney, "C:/Users/hbatrouney/Dropbox/Transport Program/Project - Spatial structure of cities/Spatial structure/Output/HeatMaps/SydneyHeatMapCBDworkersAllSydney.png")
@@ -563,6 +563,8 @@ workplaceDataSA3 <- fread("C:/Users/dhourani/Documents/Spatial structure of citi
 } else if (user == "jamesha"){
   workplaceDataSA3 <- fread("/Users/jamesha/Documents/Spatial structure of cities/Basefile/workplaceDataSA3.csv")}
 
+growthpercentmap <- function(city){
+
  growthShapefile <- SA3_2016
  SA3_temp <- SA3_2016@data %>% as.data.table
  growthShapefile@data <- SA3_temp[ , SA3_NAME16 := SA3_NAME16 %>% as.character()]
@@ -589,19 +591,23 @@ perc_cat_growth <- function(x, lower , upper, by, sep , above.char) {
   assign("breaks" , breaks, envir = globalenv())
 }
 
-perc_cat_growth(growthShapefile$GrowthRate , lower = -2.5 , upper = 10 , by = 2.5 , sep = "-", above.char = "+")
+perc_cat_growth(growthShapefile$GrowthRate , lower = 0 , upper = 5 , by = 1 , sep = "-", above.char = "+")
 
 growthShapefile <- growthShapefile[!is.na(growthShapefile$"GrowthRate"), ]
-growthShapefile <- growthShapefile[growthShapefile$"city" == "Sydney", ] 
+growthShapefile <- growthShapefile[growthShapefile$"city" == city, ] 
 
-
-growthSydney <- tm_shape(growthShapefile) +
+for(i in 1:length(growthShapefile$GrowthRate)){
+  if(growthShapefile$GrowthRate[i]<0){
+    growthShapefile$GrowthRate = na_if(growthShapefile$GrowthRate,growthShapefile$GrowthRate[i])
+  }
+}
+growthcity <- tm_shape(growthShapefile) +
   tm_fill ("GrowthRate", 
            title= "" , 
            palette = gpal(6, reverse = TRUE), 
            title.text.size=2, 
-           colorNA = "white" ,
-           breaks = breaks ) +
+           colorNA = "#828282" ,
+           breaks = breaks) +
   tm_borders("grey20") +
   tm_view (alpha = 0.7, 
            basemaps.alpha = 2, 
@@ -612,7 +618,11 @@ growthSydney <- tm_shape(growthShapefile) +
   tm_scale_bar(position=c("right", "bottom"), 
                color.dark = "#D4582A", 
                color.light = "#FFE07F") 
-
+assign(paste0("growthpercentages",city) , growthcity , envir = globalenv())
+}
+growthpercentmap("Sydney")
+growthpercentmap("Melbourne")
+growthpercentmap("Brisbane")
 # #Get core city indicator from basefile
 # core_city_merger <- workplaceDataDZN_with_corro[work_region == "Greater Sydney" & year == "2016", .(core_city = mean(core_city)) , by = work]
 # core_city_merger <- core_city_merger[ , work_merger := work %>% as.character()]
@@ -638,11 +648,29 @@ growthSydney <- tm_shape(growthShapefile) +
 
 if (save == "yes"){
   if (user == "dhourani"){
-    save_tmap(growthSydney, "C:/Users/dhourani/Dropbox (Grattan Institute)/Transport Program/Project - Spatial structure of cities/Spatial structure/Output/HeatMaps/growthSydney.png")
+    save_tmap(growthpercentagesSydney, "C:/Users/dhourani/Dropbox (Grattan Institute)/Transport Program/Project - Spatial structure of cities/Spatial structure/Output/HeatMaps/growthSydneytest3.png")
   } else if (user == "hbatrouney"){
-    save_tmap(growthSydney, "C:/Users/hbatrouney/Dropbox/Transport Program/Project - Spatial structure of cities/Spatial structure/Output/HeatMaps/growthSydney.png")
+    save_tmap(growthpercentagesSydney, "C:/Users/hbatrouney/Dropbox/Transport Program/Project - Spatial structure of cities/Spatial structure/Output/HeatMaps/growthSydneytest3.png")
   } else if (user == "jamesha"){
-    save_tmap(growthSydney, "/Users/jamesha/Dropbox (Grattan Institute)/Transport Program/Project - Spatial structure of cities/Spatial structure/Output/HeatMaps/growthSydneytest1.png")  
+    save_tmap(growthpercentagesSydney, "/Users/jamesha/Dropbox (Grattan Institute)/Transport Program/Project - Spatial structure of cities/Spatial structure/Output/HeatMaps/growthSydneytest3.png")  
+  }
+}
+if (save == "yes"){
+  if (user == "dhourani"){
+    save_tmap(growthpercentagesMelbourne, "C:/Users/dhourani/Dropbox (Grattan Institute)/Transport Program/Project - Spatial structure of cities/Spatial structure/Output/HeatMaps/growthMelbournetest3.png")
+  } else if (user == "hbatrouney"){
+    save_tmap(growthpercentagesMelbourne, "C:/Users/hbatrouney/Dropbox/Transport Program/Project - Spatial structure of cities/Spatial structure/Output/HeatMaps/growthMelbournetest3.png")
+  } else if (user == "jamesha"){
+    save_tmap(growthpercentagesMelbourne, "/Users/jamesha/Dropbox (Grattan Institute)/Transport Program/Project - Spatial structure of cities/Spatial structure/Output/HeatMaps/growthMelbournetest3.png")  
+  }
+}
+if (save == "yes"){
+  if (user == "dhourani"){
+    save_tmap(growthpercentagesBrisbane, "C:/Users/dhourani/Dropbox (Grattan Institute)/Transport Program/Project - Spatial structure of cities/Spatial structure/Output/HeatMaps/growthBrisbanetest3.png")
+  } else if (user == "hbatrouney"){
+    save_tmap(growthpercentagesBrisbane, "C:/Users/hbatrouney/Dropbox/Transport Program/Project - Spatial structure of cities/Spatial structure/Output/HeatMaps/growthBrisbanetest3.png")
+  } else if (user == "jamesha"){
+    save_tmap(growthpercentagesBrisbane, "/Users/jamesha/Dropbox (Grattan Institute)/Transport Program/Project - Spatial structure of cities/Spatial structure/Output/HeatMaps/growthBrisbanetest3.png")  
   }
 }
 # 
