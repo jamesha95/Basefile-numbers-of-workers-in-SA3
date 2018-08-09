@@ -801,3 +801,254 @@ if (save == "yes"){
     save_tmap(growthBrisbane, "/Users/jamesha/Dropbox (Grattan Institute)/Transport Program/Project - Spatial structure of cities/Spatial structure/Output/HeatMaps/growthBrisbanetest2.png")  
   }
 }
+
+
+##########################################################################################################################################
+# Trying to repeat the analysis but more granular (SA2)
+##########################################################################################################################################
+if (user == "dhourani"){
+  workplaceDataSA2_with_corro <- fread("C:/Users/dhourani/Documents/Spatial structure of cities/Basefile/workplaceDataSA2withCorrespondences.csv")
+} else if (user == "hbatrouney") {
+  workplaceDataSA2_with_corro <-  fread("C:/Users/hbatrouney/Documents/Spatial structure of cities/Basefile/workplaceDataSA2withCorrespondences.csv")
+} else if (user == "jamesha") {
+  workplaceDataSA2_with_corro <-  fread("/Users/jamesha/Documents/Spatial structure of cities/Basefile/workplaceDataSA2withCorrespondences.csv")
+}
+
+densityShapefile <- SA2_2016
+SA2_temp <- SA2_2016@data %>% as.data.table
+SA3_temp <- SA3_2016@data %>% as.data.table
+SA2_temp <- SA2_temp[ , SA2_CODE16 := SA2_CODE16 %>% as.character()]
+densityShapefile@data <- SA3_temp[SA2_temp , on = "SA3_NAME16==SA3_NAME16"]
+
+threshold <- 1000
+
+density_change <- workplaceDataSA2_with_corro[, .(density = sum(density) , workers = sum(workers)) , by = .(year, work)] %>% 
+  reshape(., idvar = "work", timevar = "year", direction = "wide") %>% 
+  .[workers.2016 > threshold , perc_density_change := ((workers.2016 / workers.2011)^0.2 - 1)*100] %>% 
+  .[density.2016==0 & workers.2016==0 , perc_density_change := 0] %>%  #Calculate density change for areas with a non-insignificant number of workers
+  .[!is.na(density.2016)] #get rid of entries that existed in 2011 but not in 2016 (these are just NAs)
+
+density_change <- density_change[ , work := work %>% as.character()]
+
+densityShapefile@data <- density_change[densityShapefile@data , on = "work==SA2_NAME16"]
+
+perc_cat_density <- function(x, lower , upper, by, sep , above.char) {
+  labs <- c(paste(paste(seq(lower, upper - by, by = by),"%"),
+                  paste(seq(lower + by, upper, by = by),"%"),
+                  sep = sep),
+            paste(upper,"%", above.char, sep = ""))
+  breaks <- c(seq(lower, upper, by = by), Inf)
+  densityShapefile$perc_density_change <- cut(x, breaks = breaks,
+                                              right = FALSE, labels = labs)
+  assign("densityShapefile" , densityShapefile, envir = globalenv())
+  assign("breaks" , breaks, envir = globalenv())
+}
+
+perc_cat_density(densityShapefile$perc_density_change , lower = -5 , upper = 10 , by = 2.5 , sep = "-", above.char = "+")
+
+densityShapefile <- densityShapefile[densityShapefile$"GCC_NAME16" == "Greater Sydney", ] 
+densityShapefile <- densityShapefile[!is.na(densityShapefile$"density.2016"), ] 
+
+densitySydney <- tm_shape(densityShapefile) +
+  tm_fill ("perc_density_change", 
+           title= "" , 
+           palette = gpal(7, reverse = TRUE), 
+           title.text.size=2, 
+           colorNA = "white" ,
+           breaks = breaks ) +
+  tm_borders("grey20") +
+  tm_view (alpha = 0.7, 
+           basemaps.alpha = 2, 
+           basemaps = "Stamen.TonerLite") +
+  tm_layout(legend.position = c("left","top"),
+            legend.text.size = 0.6 ,
+            legend.width = 1)+
+  tm_scale_bar(position=c("right", "bottom"), 
+               color.dark = "#D4582A", 
+               color.light = "#FFE07F") 
+
+#Get core city indicator from basefile
+core_city_merger <- workplaceDataSA2_with_corro[work_region == "Greater Sydney" & year == "2016", .(core_city = mean(core_city)) , by = work]
+core_city_merger <- core_city_merger[ , work_merger := work %>% as.character()]
+densityShapefile@data <- core_city_merger[densityShapefile@data, on = "work_merger==work" , nomatch = 0L]
+densityShapefileCoreSydney <- densityShapefile[densityShapefile$"core_city" == 1,]
+
+
+densitySydneyCore <- tm_shape(densityShapefileCoreSydney) +
+  tm_fill ("perc_density_change", 
+           title= "" , 
+           palette = gpal(7, reverse = TRUE), 
+           title.text.size=2, 
+           colorNA = "#AEAEAE" ,
+           breaks = breaks ,
+           showNA =FALSE) +
+  tm_borders("grey80") +
+  tm_view (alpha = 0.7, 
+           basemaps.alpha = 2, 
+           basemaps = "Stamen.TonerLite") +
+  tm_layout(legend.position = c("left","top"),
+            legend.text.size = 0.6 ,
+            legend.width = 1)
+
+if (save == "yes"){
+  if (user == "dhourani"){
+    save_tmap(densitySydneyCore, "C:/Users/dhourani/Dropbox (Grattan Institute)/Transport Program/Project - Spatial structure of cities/Spatial structure/Output/HeatMaps/densitySydneyCore.png")
+  } else if (user == "hbatrouney"){
+    save_tmap(densitySydneyCore, "C:/Users/hbatrouney/Dropbox/Transport Program/Project - Spatial structure of cities/Spatial structure/Output/HeatMaps/densitySydneyCore.png")
+  } else if (user == "jamesha"){
+    save_tmap(densitySydneyCore, "/Users/jamesha/Dropbox (Grattan Institute)/Transport Program/Project - Spatial structure of cities/Spatial structure/Output/HeatMaps/densitySydneyCoretestonly.png")
+  }
+}
+
+
+densityShapefileCBD <- densityShapefile[densityShapefile$"SA3_NAME16" == "Sydney Inner City"  ,] 
+
+densitySydneyCBD <- tm_shape(densityShapefileCBD) +
+  tm_fill ("perc_density_change", 
+           title= "" , 
+           palette = gpal(7, reverse = TRUE), 
+           title.text.size=2, 
+           colorNA = "#AEAEAE" ,
+           breaks = breaks ,
+           showNA =FALSE) +
+  tm_borders("grey80") +
+  tm_view (alpha = 0.7, 
+           basemaps.alpha = 2, 
+           basemaps = "Stamen.TonerLite") +
+  tm_layout(legend.position = c("left","top"),
+            legend.text.size = 0.6 ,
+            legend.width = 1)
+
+if (save == "yes"){
+  if (user == "dhourani"){
+    save_tmap(densitySydneyCBD, "C:/Users/dhourani/Dropbox (Grattan Institute)/Transport Program/Project - Spatial structure of cities/Spatial structure/Output/HeatMaps/densitySydneyCBD.png")
+  } else if (user == "hbatrouney"){
+    save_tmap(densitySydneyCBD, "C:/Users/hbatrouney/Dropbox/Transport Program/Project - Spatial structure of cities/Spatial structure/Output/HeatMaps/densitySydneyCBD.png")
+  }else if (user == "jamesha"){
+    save_tmap(densitySydneyCBD, "/Users/jamesha/Dropbox (Grattan Institute)/Transport Program/Project - Spatial structure of cities/Spatial structure/Output/HeatMaps/densitySydneyCBDtestonly.png")
+  }
+}
+##########################################################################################################################################
+# SA2 level relative to city average
+##########################################################################################################################################
+if (user == "dhourani"){
+  workplaceDataSA2_with_corro <- fread("C:/Users/dhourani/Documents/Spatial structure of cities/Basefile/workplaceDataSA2withCorrespondences.csv")
+} else if (user == "hbatrouney") {
+  workplaceDataSA2_with_corro <-  fread("C:/Users/hbatrouney/Documents/Spatial structure of cities/Basefile/workplaceDataSA2withCorrespondences.csv")
+} else if (user == "jamesha") {
+  workplaceDataSA2_with_corro <-  fread("/Users/jamesha/Documents/Spatial structure of cities/Basefile/workplaceDataSA2withCorrespondences.csv")
+}
+
+densityShapefile <- SA2_2016
+SA2_temp <- SA2_2016@data %>% as.data.table
+SA3_temp <- SA3_2016@data %>% as.data.table
+SA2_temp <- SA2_temp[ , SA2_CODE16 := SA2_CODE16 %>% as.character()]
+densityShapefile@data <- SA3_temp[SA2_temp , on = "SA3_NAME16==SA3_NAME16"]
+
+threshold <- 1000
+
+density_change <- workplaceDataSA2_with_corro[, .(density = sum(density) , workers = sum(workers)) , by = .(year, work)] %>% 
+  reshape(., idvar = "work", timevar = "year", direction = "wide") %>% 
+  .[workers.2016 > threshold , perc_density_change := ((workers.2016 / workers.2011)^0.2 - 1)*100] %>% 
+  .[density.2016==0 & workers.2016==0 , perc_density_change := 0] %>%  #Calculate density change for areas with a non-insignificant number of workers
+  .[!is.na(density.2016)] #get rid of entries that existed in 2011 but not in 2016 (these are just NAs)
+
+density_change <- density_change[ , work := work %>% as.character()]
+
+densityShapefile@data <- density_change[densityShapefile@data , on = "work==SA2_NAME16"]
+
+perc_cat_density <- function(x, lower , upper, by, sep , above.char) {
+  labs <- c(paste("below average"),
+                  paste("about average"),
+                  paste("above average"))
+  breaks <- c(-Inf,seq(lower, upper, by = by), Inf)
+  densityShapefile$perc_density_change <- cut(x, breaks = breaks,
+                                              right = FALSE, labels = labs)
+  assign("densityShapefile" , densityShapefile, envir = globalenv())
+  assign("breaks" , breaks, envir = globalenv())
+}
+
+perc_cat_density(densityShapefile$perc_density_change , lower = 2.1 , upper = 2.2 , by = 0.1 , sep = "-", above.char = "+")
+
+densityShapefile <- densityShapefile[densityShapefile$"GCC_NAME16" == "Greater Sydney", ] 
+densityShapefile <- densityShapefile[!is.na(densityShapefile$"density.2016"), ] 
+
+densitySydney <- tm_shape(densityShapefile) +
+  tm_fill ("perc_density_change", 
+           title= "" , 
+           palette = gpal(3, reverse = TRUE), 
+           title.text.size=2, 
+           colorNA = "white" ,
+           breaks = breaks ) +
+  tm_borders("grey20") +
+  tm_view (alpha = 0.7, 
+           basemaps.alpha = 2, 
+           basemaps = "Stamen.TonerLite") +
+  tm_layout(legend.position = c("left","top"),
+            legend.text.size = 0.6 ,
+            legend.width = 1)+
+  tm_scale_bar(position=c("right", "bottom"), 
+               color.dark = "#D4582A", 
+               color.light = "#FFE07F") 
+
+#Get core city indicator from basefile
+core_city_merger <- workplaceDataSA2_with_corro[work_region == "Greater Sydney" & year == "2016", .(core_city = mean(core_city)) , by = work]
+core_city_merger <- core_city_merger[ , work_merger := work %>% as.character()]
+densityShapefile@data <- core_city_merger[densityShapefile@data, on = "work_merger==work" , nomatch = 0L]
+densityShapefileCoreSydney <- densityShapefile[densityShapefile$"core_city" == 1,]
+
+
+densitySydneyCore <- tm_shape(densityShapefileCoreSydney) +
+  tm_fill ("perc_density_change", 
+           title= "" , 
+           palette = gpal(3, reverse = TRUE), 
+           title.text.size=2, 
+           colorNA = "#AEAEAE" ,
+           breaks = breaks ,
+           showNA =FALSE) +
+  tm_borders("grey80") +
+  tm_view (alpha = 0.7, 
+           basemaps.alpha = 2, 
+           basemaps = "Stamen.TonerLite") +
+  tm_layout(legend.position = c("left","top"),
+            legend.text.size = 0.6 ,
+            legend.width = 1)
+
+if (save == "yes"){
+  if (user == "dhourani"){
+    save_tmap(densitySydneyCore, "C:/Users/dhourani/Dropbox (Grattan Institute)/Transport Program/Project - Spatial structure of cities/Spatial structure/Output/HeatMaps/densitySydneyCore.png")
+  } else if (user == "hbatrouney"){
+    save_tmap(densitySydneyCore, "C:/Users/hbatrouney/Dropbox/Transport Program/Project - Spatial structure of cities/Spatial structure/Output/HeatMaps/densitySydneyCore.png")
+  } else if (user == "jamesha"){
+    save_tmap(densitySydneyCore, "/Users/jamesha/Dropbox (Grattan Institute)/Transport Program/Project - Spatial structure of cities/Spatial structure/Output/HeatMaps/densitySydneyCoretestonlyrelative.png")
+  }
+}
+
+
+densityShapefileCBD <- densityShapefile[densityShapefile$"SA3_NAME16" == "Sydney Inner City"  ,] 
+
+densitySydneyCBD <- tm_shape(densityShapefileCBD) +
+  tm_fill ("perc_density_change", 
+           title= "" , 
+           palette = gpal(7, reverse = TRUE), 
+           title.text.size=2, 
+           colorNA = "#AEAEAE" ,
+           breaks = breaks ,
+           showNA =FALSE) +
+  tm_borders("grey80") +
+  tm_view (alpha = 0.7, 
+           basemaps.alpha = 2, 
+           basemaps = "Stamen.TonerLite") +
+  tm_layout(legend.position = c("left","top"),
+            legend.text.size = 0.6 ,
+            legend.width = 1)
+
+if (save == "yes"){
+  if (user == "dhourani"){
+    save_tmap(densitySydneyCBD, "C:/Users/dhourani/Dropbox (Grattan Institute)/Transport Program/Project - Spatial structure of cities/Spatial structure/Output/HeatMaps/densitySydneyCBD.png")
+  } else if (user == "hbatrouney"){
+    save_tmap(densitySydneyCBD, "C:/Users/hbatrouney/Dropbox/Transport Program/Project - Spatial structure of cities/Spatial structure/Output/HeatMaps/densitySydneyCBD.png")
+  }else if (user == "jamesha"){
+    save_tmap(densitySydneyCBD, "/Users/jamesha/Dropbox (Grattan Institute)/Transport Program/Project - Spatial structure of cities/Spatial structure/Output/HeatMaps/densitySydneyCBDtestonly.png")
+  }
+}
