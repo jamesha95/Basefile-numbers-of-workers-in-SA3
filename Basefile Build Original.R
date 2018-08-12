@@ -25,7 +25,7 @@ SA2_correspondence <- readxl::read_excel("./Data/SA2 correspondence 2011 2016.xl
 
 #Set global parameters 
 
-work.asgs <- "DZN" #Select main statistical area of work from "DZN" and "SA2" (needs to be in "") )
+work.asgs <- "SA2" #Select main statistical area of work from "DZN" and "SA2" (needs to be in "") )
 live.asgs <- "SA2" #Select main statistical area of residence from "DZN" and "SA2" (needs to be in "") )
 
 #Create baesefile - loop over census years
