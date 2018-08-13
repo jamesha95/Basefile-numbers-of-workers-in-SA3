@@ -1,4 +1,4 @@
-user <- "jamesha" #choose from hbatrouney or dhourani or jamesha
+user <- "jaha" #choose from hbatrouney or dhourani or jamesha or jaha
 save <- "yes" #choose from save "yes" or "no" - only pick yes if you want to save dandelions
 
 #STEPS
@@ -21,6 +21,8 @@ if (user == "hbatrouney")
   setwd("/Users/dhourani/Dropbox (Grattan Institute)/Transport Program/Project - Spatial structure of cities/Spatial structure")
 }else if (user == "jamesha"){
   setwd("/Users/jamesha/Dropbox (Grattan Institute)/Transport Program/Project - Spatial structure of cities/Spatial structure")
+}else if (user == "jaha"){
+  setwd("/Users/jaha/Dropbox (Grattan Institute)/Transport Program/Project - Spatial structure of cities/Spatial structure")
 }
 #Load these libraries
 library(ASGS)
@@ -125,6 +127,8 @@ if (save == "yes"){
       fwrite(workplaceData , paste0("C:/Users/hbatrouney/Documents/Spatial structure of cities/Basefile/workplaceData",work.asgs,".csv"))  
     } else if (user == "jamesha"){
       fwrite(workplaceData , paste0("/Users/jamesha/Documents/Spatial structure of cities/Basefile/workplaceData",work.asgs,".csv"))
+    }else if (user == "jaha"){
+      fwrite(workplaceData , paste0("/Users/jaha/Documents/Spatial structure of cities/Basefile/workplaceData",work.asgs,".csv"))
     }
 }
 
