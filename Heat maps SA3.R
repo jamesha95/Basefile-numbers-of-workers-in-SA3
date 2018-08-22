@@ -47,22 +47,37 @@ growth <- growth[ , SA3 := SA3 %>% as.character()]
 
 growthShapefile@data <- growth[growthShapefile@data , on = "SA3==SA3_NAME16"]
 
-perc_cat_growth <- function(x, lower , upper, by, sep , above.char) {
-  labs <- c(paste("Negative growth"),
-            paste(paste(seq(lower, upper - by, by = by),"%"),
-                  paste(seq(lower + by, upper, by = by),"%"),
-                  sep = sep),
-            paste(upper,"%", above.char, sep = ""))
-  breaks <- c(-Inf,seq(lower, upper, by = by), Inf)
- growthShapefile$GrowthRate <- cut(x, breaks = breaks,
-  #growth$GrowthRate <- cut(x,breaks = breaks,
-                                              right = FALSE, labels = labs)
+#This function categorises each SA3 into a bracket for easy colouring. The code below is quite generic and flexible.
+#I will comment it out and replace it with specific percentage brackets that I want
+#i.e. negative growth (grey), 0-1%, 1-2%, 2-3%, 3-4%, 4-5%, 5%+
+
+# perc_cat_growth <- function(x, lower , upper, by, sep , above.char) {
+#   labs <- c(paste("Negative growth"),
+#             paste(paste(seq(lower, upper - by, by = by),"%"),
+#                   paste(seq(lower + by, upper, by = by),"%"),
+#                   sep = sep),
+#             paste(upper,"%", above.char, sep = ""))
+#   breaks <- c(-Inf,seq(lower, upper, by = by), Inf)
+#   growthShapefile$GrowthRate <- cut(x, breaks = breaks,
+#   #growth$GrowthRate <- cut(x,breaks = breaks,
+#                                               right = FALSE, labels = labs)
+#   assign("growthShapefile" , growthShapefile, envir = globalenv())
+#   assign("breaks" , breaks, envir = globalenv())
+#   assign("labs", labs, envir = globalenv())
+# }
+
+perc_cat_growth <- function(x) {
+  labs <- c("Negative growth","0-1%","1-2%","2-3%","3-4%","Above 4%")
+  breaks <- c(-Inf,0,1,2,3,4, Inf)
+  growthShapefile$GrowthRate <- cut(x, breaks = breaks,
+                                    #growth$GrowthRate <- cut(x,breaks = breaks,
+                                    right = FALSE, labels = labs)
   assign("growthShapefile" , growthShapefile, envir = globalenv())
   assign("breaks" , breaks, envir = globalenv())
   assign("labs", labs, envir = globalenv())
 }
 
-perc_cat_growth(growthShapefile$GrowthRate , lower = 0 , upper = 8 , by = 2, sep = "-", above.char = "+")
+perc_cat_growth(growthShapefile$GrowthRate)
 
 growthShapefile <- growthShapefile[!is.na(growthShapefile$"GrowthRate"), ]
 growthShapefile <- growthShapefile[growthShapefile$"city" == city, ] 
@@ -75,21 +90,24 @@ growthShapefile <- growthShapefile[growthShapefile$"city" == city, ]
 growthcity <- tm_shape(growthShapefile) +
   tm_fill ("GrowthRate", 
            title= "" , 
-           palette = gpal(6, reverse = TRUE), 
+           palette = c("#AEAEAE",gpal(6, reverse = TRUE)[1:5]), 
            title.text.size=2, 
            colorNA = "#828282" ,
            breaks = breaks,
-           labels = labs) +
-  #tm_borders("grey20") +
+           labels = labs,
+           legend.show = FALSE) +
+  tm_borders("white",lwd = 1) +
   tm_view (alpha = 0.7, 
            basemaps.alpha = 2, 
-           basemaps = "Stamen.TonerLite") +
-  tm_layout(legend.position = c("left","top"),
-            legend.text.size = 0.6 ,
-            legend.width = 1)+
-  tm_scale_bar(position=c("right", "bottom"), 
-               color.dark = "#D4582A", 
-               color.light = "#FFE07F") 
+           basemaps = "Stamen.TonerLite") 
+  # +
+  # tm_layout(legend.position = c("left","top"),
+  #           legend.text.size = 0.6 ,
+  #           legend.width = 1)
+  # +
+  # tm_scale_bar(position=c("right", "bottom"), 
+  #              color.dark = "#D4582A", 
+  #              color.light = "#FFE07F") 
 assign(paste0("growthpercentages",city) , growthcity , envir = globalenv())
 }
 growthpercentmap("Sydney")
