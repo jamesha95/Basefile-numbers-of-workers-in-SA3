@@ -74,7 +74,8 @@ Melbourne_coastline <-
 Brisbane_coastline <- 
   Australian_coastline %>%
   .[lat %between% c(-28.14, -26.79)] %>%
-  .[long %between% c(150.0, 153.40)]  %>%
+  #Brisbane really extends out to 153.55 including Stradbroke Island. Original file was only to 153.40 E 
+  .[long %between% c(150.0, 153.55)]  %>%
   # Islands cause difficulties
   .[, N := .N, by = group] %>%
   .[N == max(N)]
@@ -158,7 +159,7 @@ regionList <- c(mainCitiesList, regionalCities)
 
 #Function for drawing city dandelion (don't change this)
 
-CityDandelions <- function(yr, region) {
+CityDandelions <- function(yr, region, linewidth) {
   #set sample sizes below
   if (region %in% mainCitiesList) {sampleSize <- 200} else if (region %in% smallerCitiesList) {sampleSize <- 80}  
   
@@ -220,18 +221,26 @@ CityDandelions <- function(yr, region) {
   
   knitting <- isTRUE(getOption('knitr.in.progress'))
   #uncomment the below code when not calculating the top 200 journeys
-  border <- cbind(border[piece==1] , randomSample ) 
+
+  border <- cbind(border[piece ==1] , randomSample ) 
+  
+  # for transparent plots, need to remove all but the first 200 rows of origin-destination data from 'border'
+  #border[200:length(border$jobs_weight),':=' (dest_lon == NULL .....      )]
   ######
   # border <- cbind(border[piece==1] , ordered_sample )
   ######
-  plot <- border %>% ggplot(aes(x = long, y = lat,order = order, group = interaction(piece, group)) ) +
+  plot <- border %>% ggplot(aes(x = long, y = lat,order = order, group = interaction(piece, group)
+                                ) ) +
     geom_path(color = theGrey) +
     ggplot2::coord_map() +
     ggplot2::theme_void(base_family = if (knitting) "helvet" else "") +
     theme(legend.position="none") +
     theme(axis.line=element_blank(), axis.ticks=element_blank())  +
-    geom_segment(data = border , aes(x = orig_lon, y = orig_lat, xend = dest_lon, yend =  dest_lat)  , color = "#F68B33")+
-    geom_point(data = border , aes(dest_lon, dest_lat , size = border$jobs_weight ), color = "#AEAEAE" )
+    # for transparent points and lines (so that overlaps are more apparent) use an alpha value less than 1
+    # note though that transparency won't work until we fix the recycling issue when we merge the data tables
+    geom_segment(data = border , aes(x = orig_lon, y = orig_lat, xend = dest_lon, yend =  dest_lat)  , color = "#F68B33", lwd = linewidth)+
+    #Either choose a number for size, or use border$jobs_weight
+    geom_point(data = border , aes(dest_lon, dest_lat, size = border$jobs_weight), color = "#AEAEAE",alpha = 1 )
   
   if (region == "Greater Perth"){
     plot <- Perth_coastline  %>% ggplot(aes(x = long, y = lat,order = order, group = interaction(piece, group)) ) +
@@ -241,8 +250,10 @@ CityDandelions <- function(yr, region) {
       ggplot2::theme_void(base_family = if (knitting) "helvet" else "") +
       theme(legend.position="none") +
       theme(axis.line=element_blank(), axis.ticks=element_blank())  +
-      geom_segment(data = border , aes(x = orig_lon, y = orig_lat, xend = dest_lon, yend =  dest_lat)  , color = "#F68B33")+
-      geom_point(data = border , aes(dest_lon, dest_lat , size = border$jobs_weight ), color = "#AEAEAE" )
+      # for transparent points and lines (so that overlaps are more apparent) use an alpha value less than 1
+      # note though that transparency won't work until we fix the recycling issue when we merge the data tables
+      geom_segment(data = border , aes(x = orig_lon, y = orig_lat, xend = dest_lon, yend =  dest_lat)  , color = "#F68B33", alpha = 1)+
+      geom_point(data = border , aes(dest_lon, dest_lat , size = border$jobs_weight ), color = "#AEAEAE", alpha = 1)
   }
   
   assign(paste0(region,"plot"), plot , envir= globalenv())
@@ -261,8 +272,128 @@ CityDandelions <- function(yr, region) {
 
 #Call function (don't change this)
 for (j in regionList) {
-  CityDandelions(yr = year , region = j )
+  CityDandelions(yr = year , region = j,1 )
 }
+
+
+#####################################################################################################################################
+#A very large sample, with transparency (this works because I've sampled as many times as the length of the coastline data, so there's no recycling)
+##########################################################################################################################################################################
+CityDandelionsAllRoutes <- function(yr, region, linewidth, alphaline, alphadot,dotsize) {
+  #set sample sizes below
+  if (region %in% mainCitiesList) {sampleSize <- 200} else if (region %in% smallerCitiesList) {sampleSize <- 80}  
+  
+  #basefile <-basefile[work_region==live_region & work_region == region & year == yr & core_city_work ==1 ]
+  
+  #worth playing around with the "work == live" requirement, especially for smaller cities (where people may commute in from outside the city's SA2s). Comment out the relevant line.
+  if (region %in% regionalCities){
+    basefile2 <-basefile[work_SUA == live_SUA & live_SUA == region & year == yr ]
+    #basefile2 <-basefile[work_SUA == region & year == yr ]
+  } else {
+    basefile2 <-basefile[work_region==live_region & work_region == region & year == yr ]}
+  #basefile2 <-basefile[work_region == region & year == yr ]}
+
+  
+  if (region %in% c(mainCitiesList, regionalCitiesCoastal)){
+    
+    border <- switch(region,
+                     "Greater Melbourne" = Melbourne_coastline,
+                     "Greater Sydney" = Sydney_coastline, 
+                     "Greater Brisbane" = Brisbane_coastline ,
+                     "Greater Perth" = Perth_coastline ,
+                     "Greater Hobart" = Hobart_coastline ,
+                     "Newcastle - Maitland" = Newcastle_coastline ,
+                     "Cairns" = Cairns_coastline ,
+                     "Greater Adelaide" = Adelaide_coastline ,
+                     "Gold Coast - Tweed Heads" = GoldCoast_coastline ,
+                     "Sunshine Coast" = SunshineCoast_coastline ,
+                     "Greater Darwin" = Darwin_coastline)
+    
+    
+  } else if (region %in% regionalCitiesInland) { 
+    
+    border <- SUA_shapefile[SUA_shapefile$"SUA_NAME16" == region,] %>% fortify %>% as.data.table
+    
+  }
+  
+  ############
+  # #here's a thought - what if I make a map of the MOST common routes, rather than a random sample? I'm thinking it will mainly be lines into the CBD with a few dots in other big SA2s
+  # setkey(basefile2,workers)
+  # #setkey orders them in ascending order, so I need to take the bottom 200 obs
+  # ordered_sample <- basefile2[(length(basefile2$workers)-199):length(basefile2$workers),c("workers","dest_lon","dest_lat","orig_lon","orig_lat")]
+  ############
+  
+  
+  # Worth investigating whether replace = TRUE makes much difference, given how low the prob of any individual route actually is.
+  samp_idx <- sample(seq_len(nrow(basefile2)), length(border$rowname), replace = TRUE, prob=basefile2$workers)
+  randomSample <- basefile2[samp_idx, ][ , c("dest_lon" , "dest_lat" , "orig_lon" , "orig_lat")]
+  dest_weight <- basefile2[ , .(jobs_weight = sum(workers)) , by = .(dest_lon, dest_lat)]
+  
+  setkey(dest_weight ,  dest_lon , dest_lat)
+  #### UNCOMMENT THESE LINES FOR THE ACTUAL SCRIPT -- temporarily commented out for a test of the 200 most common routes
+  setkey(randomSample ,  dest_lon , dest_lat)
+  randomSample <- dest_weight[randomSample]
+  ############
+  #trial below only (used to make maps of the most popular routes)
+  # setkey(ordered_sample ,  dest_lon , dest_lat)
+  # ordered_sample <- dest_weight[ordered_sample]
+  #############
+  
+  knitting <- isTRUE(getOption('knitr.in.progress'))
+  #uncomment the below code when not calculating the top 200 journeys
+  
+  border <- cbind(border[piece ==1] , randomSample ) 
+  
+  # for transparent plots, need to remove all but the first 200 rows of origin-destination data from 'border'
+  #border[200:length(border$jobs_weight),':=' (dest_lon == NULL .....      )]
+  ######
+  # border <- cbind(border[piece==1] , ordered_sample )
+  ######
+  plot <- border %>% ggplot(aes(x = long, y = lat,order = order, group = interaction(piece, group)) ) +
+    geom_path(color = theGrey) +
+    ggplot2::coord_map() +
+    ggplot2::theme_void(base_family = if (knitting) "helvet" else "") +
+    theme(legend.position="none") +
+    theme(axis.line=element_blank(), axis.ticks=element_blank())  +
+    # for transparent points and lines (so that overlaps are more apparent) use an alpha value less than 1
+    # note though that transparency won't work until we fix the recycling issue when we merge the data tables
+    geom_segment(data = border , aes(x = orig_lon, y = orig_lat, xend = dest_lon, yend =  dest_lat)  , color = "#F68B33", alpha = alphaline, lwd = linewidth)+
+    #Either choose a number for size, or use border$jobs_weight
+    geom_point(data = border , aes(dest_lon, dest_lat), size = dotsize, color = "#A02226",alpha = alphadot)
+  
+  if (region == "Greater Perth"){
+    plot <- Perth_coastline  %>% ggplot(aes(x = long, y = lat,order = order, group = interaction(piece, group)) ) +
+      geom_path(color = theGrey) +
+      ggplot2::coord_map(xlim = c(115.5, 116.31), 
+                         ylim = c(-32.7, -31.4))+
+      ggplot2::theme_void(base_family = if (knitting) "helvet" else "") +
+      theme(legend.position="none") +
+      theme(axis.line=element_blank(), axis.ticks=element_blank())  +
+      # for transparent points and lines (so that overlaps are more apparent) use an alpha value less than 1
+      # note though that transparency won't work until we fix the recycling issue when we merge the data tables
+      geom_segment(data = border , aes(x = orig_lon, y = orig_lat, xend = dest_lon, yend =  dest_lat)  , color = "#F68B33", alpha = 1)+
+      geom_point(data = border , aes(dest_lon, dest_lat , size = border$jobs_weight ), color = "#AEAEAE", alpha = 1)
+  }
+  
+  assign(paste0(region,"plot"), plot , envir= globalenv())
+  # 
+  # if (saveNormal == "yes"){
+  #   if (user == "hbatrouney"){
+  #     ggsave(plot , filename = paste0("C:/Users/hbatrouney/Dropbox/Transport Program/Project - Spatial structure of cities/Spatial structure/Output/CityDandelions/CityDandelion",region,year,".png"))    
+  #   } else if (user == "dhourani"){
+  #     ggsave(plot, filename = paste0("/Users/dhourani/Dropbox/Transport Program/Project - Spatial structure of cities/Spatial structure/Output/CityDandelions/CityDandelion2/",region,year,".png" ), device = NULL, path = NULL,
+  #            scale = 1, width = 5, height = 5, units = "in",
+  #            dpi = 300, limitsize = TRUE)
+  #   }
+  # }
+  
+}
+
+#Call function (don't change this)
+for (j in regionList) {
+  CityDandelionsAllRoutes(yr = year , region = j,1 )
+}
+
 
 
 ############################################################################################################################################################################################################
